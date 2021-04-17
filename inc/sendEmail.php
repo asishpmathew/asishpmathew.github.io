@@ -47,6 +47,10 @@ if($_POST) {
    if (!$error) {
 
       ini_set("sendmail_from", $siteOwnersEmail); // for windows server
+
+      echo "<a href='mailto:" . $siteOwnersEmail . "?body=" . $message . "'>";
+
+/*
       $mail = mail($siteOwnersEmail, $subject, $message, $headers);
 echo "OK";
 		if ($mail) { echo "OK"; }
@@ -62,7 +66,7 @@ echo "OK";
 		
 		echo $response;
 
-	} # end if - there was a validation error
+	} */ # end if - there was a validation error
 
 }
 
