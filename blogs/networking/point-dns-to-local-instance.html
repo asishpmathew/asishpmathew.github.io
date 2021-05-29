@@ -1,0 +1,125 @@
+<p style="text-align:center"><span style="font-size:20px"><strong>How to point the Prod/Stage/Test DNS to your locally running Dev Instance?</strong></span></p>
+
+<p style="text-align:justify"><span style="font-size:14px">In micro-services, the calls are routed to multiple service instances. To understand the flow of some services, the developer needs to&nbsp;debug it locally with&nbsp;your Dev instance running in&nbsp;a local machine. Here we are discussing, How you can easily point the remote instance to your local running instance.&nbsp;</span></p>
+
+<p style="text-align:justify"><span style="font-size:16px"><u><strong>Steps in High-level</strong></u></span></p>
+
+<ul>
+	<li style="text-align:justify"><span style="font-size:12px">Edit the Hosts File: Point the site address to locally running instance IP</span></li>
+	<li style="text-align:justify">
+	<h1><span style="font-size:12px">Port Forwarding: Forward the HTTP port(80) to desired instance port.</span></h1>
+	</li>
+</ul>
+
+<p style="text-align:justify"><span style="font-size:16px"><strong><u>Detailed&nbsp;explanation</u></strong></span></p>
+
+<p style="text-align:justify"><u><span style="font-size:14px"><strong>Edit the Hosts File</strong></span></u></p>
+
+<ol>
+	<li>Open the&nbsp;<strong>Terminal</strong>&nbsp;application. You may either type&nbsp;<em>Terminal</em>&nbsp;in the Spotlight search or by navigating to&nbsp;<strong>Applications&nbsp;</strong>, then the&nbsp;<strong>Utilities</strong>&nbsp;folder, then click on the&nbsp;<strong>Terminal</strong>&nbsp;app.</li>
+	<li>Open the&nbsp;<em>hosts</em>&nbsp;file for editing. In the terminal window you just opened copy/paste the command string below, and press return.<br />
+	<em>sudo nano /private/etc/hosts</em>&nbsp;or&nbsp;<em>sudo nano /etc/hosts</em>&nbsp;on newer MacOS.</li>
+	<li>Enter your password when it prompts you to enter your Mac user&rsquo;s password.
+	<p><strong>NOTE:</strong>&nbsp;you will not see the cursor move. This is normal, simply enter your password and press the&nbsp;<em>Return</em>&nbsp;when done.</p>
+	</li>
+	<li>Edit the hosts file by adding these two lines to the bottom of the file.
+	<p><strong>SERVER_IP_ADDRESS</strong>&nbsp;domain.com<br />
+	<strong>SERVER_IP_ADDRESS</strong>&nbsp;www.domain.com</p>
+
+	<p>For example, it should look like:</p>
+
+	<p>86.75.30.9 domain.com<br />
+	86.75.30.9 www.domain.com</p>
+
+	<p><strong>NOTE:</strong>&nbsp;Be sure to replace domain.com with your actual domain name. If you are not sure which IP address to use, please contact our Support Department for further assistance.</p>
+
+	<p><strong>WARNING:</strong>&nbsp;Be sure that there is a space between the IP and the URL. Otherwise, the rule will not work.</p>
+	</li>
+	<li>Save your changes by pressing&nbsp;<strong>control-o</strong>&nbsp;on your keyboard then&nbsp;<strong>return</strong>&nbsp;to accept the filename. Exit the editor by pressing&nbsp;<strong>control-x</strong>. This takes you back to the terminal screen.</li>
+	<li>You may need to flush your Mac&rsquo;s DNS cache, so copy/paste the below command string into terminal, and press return:&nbsp;<strong>dscacheutil -flushcache</strong>. You may have to add&nbsp;<strong>sudo</strong>&nbsp;to this command, for example:&nbsp;<strong>sudo dscacheutil -flushcacheb</strong>.</li>
+</ol>
+
+<p><img alt="" src="https://asishpmathew.github.io/blogs/networking/images/edit-host.png" /></p>
+
+<p><span style="font-size:14px"><u><strong>Port Forwarding</strong></u></span></p>
+
+<p><strong>1. Create an anchor file</strong></p>
+
+<p>For example&nbsp;<code>/etc/pf.anchors/com.papercut</code></p>
+
+<p><strong>2. In the com.papercut anchor file, enter:</strong></p>
+
+<p><code>rdr pass on lo0 inet proto tcp from any to self port 80 -&gt; 127.0.0.1 port 9191</code><br />
+<code>rdr pass on en0 inet proto tcp from any to any port 80 -&gt; 127.0.0.1 port 9191</code><br />
+<code>rdr pass on en1 inet proto tcp from any to any port 80 -&gt; 127.0.0.1 port 9191</code><br />
+<br />
+<em>make sure you hit &lsquo;enter&rsquo; to create a new blank line after these 3 lines have been entered - if you don&rsquo;t do this, you&rsquo;ll get error messages about the format of the file</em></p>
+
+<p><strong>3. Test the anchor file:</strong></p>
+
+<p><code>sudo pfctl -vnf /etc/pf.anchors/com.papercut</code></p>
+
+<p><strong>4. Add the anchor file to the pf.conf file:</strong></p>
+
+<p><code>sudo vi /etc/pf.conf</code><br />
+<br />
+Then add in the following lines under each corresponding section - e.g. the rdr-anchor line under the current rdr-anchor line, and the load anchor under the current load-anchor statement:<br />
+<code>rdr-anchor &quot;port80&quot;</code><br />
+<code>load anchor &quot;port80&quot; from &quot;/etc/pf.anchors/com.papercut&quot;</code><br />
+<br />
+<strong>5. Load the pf.conf file automatically:</strong></p>
+
+<p>This can be done either manually (see below) or create a dedicated Launch Daemon to load and enable the config on boot, or edit the current daemon for pf to enable the new config automatically at startup:<br />
+<code>sudo vi /System/Library/LaunchDaemons/com.apple.pfctl.plist</code><br />
+<br />
+Then within the section detailing the program arguments:<br />
+<code>&lt;key&gt;ProgramArguments&lt;/key&gt;</code><br />
+<br />
+Add in an extra string with -e, which will enable the config, as per:<br />
+<br />
+&lt;string&gt;pfctl&lt;/string&gt;<br />
+<strong>&lt;string&gt;-e&lt;/string&gt;</strong><br />
+&lt;string&gt;-f&lt;/string&gt;<br />
+&lt;string&gt;/etc/pf.conf&lt;/string&gt;<br />
+<br />
+Then save the file, exit and restart the server to test.<br />
+&nbsp;</p>
+
+<h3>Other notes:</h3>
+
+<p><em>To test this method manually (no restart required) you can use&nbsp;<code>sudo pfctl -ef /etc/pf.conf</code>&nbsp;which will load and enable the pf.conf file, which will then call the com.papercut anchor file.</em><br />
+<br />
+<em>Additionally, if you want to try this out without making any changes to config files, you can test this temporarily (it will not retain the settings after a restart) by running:</em><br />
+&nbsp;</p>
+
+<blockquote>
+<p><em>echo &quot;</em></p>
+
+<p><em>rdr pass on lo0 inet proto tcp from 127.0.0.1 to self port 80 -&gt; 127.0.0.1 port 8080</em></p>
+
+<p><em>rdr pass on en0 inet proto tcp from 127.0.0.1 to self port 80 -&gt; 127.0.0.1 port 8080</em></p>
+
+<p><em>rdr pass on en1 inet proto tcp from 127.0.0.1 to self port 80 -&gt; 127.0.0.1 port 8080</em></p>
+
+<p><em>&quot; | sudo pfctl -ef -</em></p>
+</blockquote>
+
+<p style="text-align:justify"><img alt="" src="https://asishpmathew.github.io/blogs/networking/images/commands.png" /><br />
+<br />
+<span style="font-size:16px"><u><strong>Results</strong></u></span></p>
+
+<p style="text-align:justify"><u><strong><img alt="" src="https://asishpmathew.github.io/blogs/networking/images/result-1.png" style="height:211px; width:1621px" /></strong></u></p>
+
+<p style="text-align:justify"><u><strong><img alt="" src="https://asishpmathew.github.io/blogs/networking/images/result-2.png" /></strong></u><br />
+<span style="font-size:16px"><strong><u>References</u></strong></span></p>
+
+<ul>
+	<li style="text-align:justify">
+	<p><a href="https://www.papercut.com/kb/Main/MacPortForwarding">https://www.papercut.com/kb/Main/MacPortForwarding</a></p>
+	</li>
+	<li style="text-align:justify">
+	<p><a href="https://superuser.com/questions/473039/pfctl-port-forwarding-in-mac-osx">https://superuser.com/questions/473039/pfctl-port-forwarding-in-mac-osx</a></p>
+	</li>
+</ul>
+
+<p style="text-align:justify">&nbsp;</p>
